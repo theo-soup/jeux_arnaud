@@ -105,6 +105,30 @@ button.card{padding:0;cursor:pointer}
 .log{font-size:13px;display:flex;flex-direction:column;gap:2px;max-height:150px;overflow:auto}
 .log div:last-child{font-weight:700}
 .banner{text-align:center;font-family:var(--display);font-size:clamp(26px,6vw,40px);text-transform:uppercase;color:var(--gold)}
+/* chat */
+.chatbtn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;border-radius:999px;padding:12px 18px;box-shadow:0 6px 18px rgba(0,0,0,.25);display:flex;gap:8px;align-items:center;background:var(--red);color:#fff}
+.chatbtn .badge{background:var(--gold);color:#16213f;border-radius:999px;min-width:22px;height:22px;display:grid;place-items:center;font-size:12px;padding:0 6px;font-variant-numeric:tabular-nums}
+.chat{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:31;width:min(360px,calc(100% - 32px));height:min(480px,70vh);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.3);display:flex;flex-direction:column;overflow:hidden}
+.chat header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.chat header h2{font-size:18px}
+.chat header button{padding:6px 10px}
+.msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:0}
+.msg{max-width:85%;align-self:flex-start;display:flex;flex-direction:column;gap:2px}
+.msg .who{font-size:11px;font-weight:700;color:var(--muted)}
+.msg .txt{background:var(--bg);border:1px solid var(--line);border-radius:12px 12px 12px 4px;padding:8px 10px;overflow-wrap:anywhere;white-space:pre-wrap}
+.msg.me{align-self:flex-end;align-items:flex-end}
+.msg.me .txt{background:var(--table);color:var(--table-ink);border-color:transparent;border-radius:12px 12px 4px 12px}
+.quick{display:flex;gap:6px;overflow-x:auto;padding:8px 12px 0}
+.quick button{flex:none;font-size:13px;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.chat form{display:flex;gap:8px;padding:10px 12px}
+.chat form input{flex:1;min-width:0}
+.peek{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:30;max-width:min(300px,calc(100% - 32px));background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:8px 12px;box-shadow:0 6px 18px rgba(0,0,0,.25);font-size:14px;cursor:pointer;overflow-wrap:anywhere}
+.peek b{display:block;font-size:11px;color:var(--muted)}
+/* GIF du ramassage */
+.pickgif{position:fixed;inset:0;z-index:45;display:grid;place-items:center;pointer-events:none;padding:16px}
+.pickgif figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:10px;background:rgba(10,20,40,.55);padding:14px;border-radius:16px;max-width:min(420px,100%)}
+.pickgif img{display:block;width:100%;max-height:50vh;object-fit:contain;border-radius:10px}
+.pickgif figcaption{font-family:var(--display);font-size:clamp(22px,6vw,32px);text-transform:uppercase;color:var(--gold);text-shadow:0 2px 8px rgba(0,0,0,.6);text-align:center}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:600;max-width:calc(100% - 32px);z-index:5}
 details summary{cursor:pointer;font-weight:700}
 details ul{margin:8px 0 0;padding-left:20px}
@@ -131,7 +155,7 @@ details ul{margin:8px 0 0;padding-left:20px}
     <div class="headrow"><button class="ghost menu" id="menuBtn" hidden>← Menu</button></div>
     <h1><span class="s">♠</span> Le Jeu d'Arnaud <span class="s">♦</span></h1>
     <div class="tag">Le but : être le premier à n'avoir plus aucune carte</div>
-    <div class="muted" style="font-size:12px;margin-top:8px">Version 8 · 2 à 6 joueurs · partie en 3 manches gagnantes</div>
+    <div class="muted" style="font-size:12px;margin-top:8px">Version 9 · 2 à 6 joueurs · partie en 3 manches gagnantes</div>
   </header>
 
   <div id="nodb" class="panel" hidden>
@@ -181,6 +205,14 @@ details ul{margin:8px 0 0;padding-left:20px}
   </details>
 </div>
 <div id="fx"></div>
+<button class="chatbtn" id="chatBtn" hidden>Chat <span class="badge" id="chatBadge" hidden>0</span></button>
+<div class="peek" id="peek" hidden></div>
+<section class="chat" id="chat" hidden aria-label="Chat de la partie">
+  <header><h2>Chat</h2><button class="ghost" id="chatClose">Fermer</button></header>
+  <div class="msgs" id="msgs" aria-live="polite"></div>
+  <div class="quick" id="quick"></div>
+  <form id="chatForm" autocomplete="off"><input type="text" id="chatInput" maxlength="200" placeholder="Écris un message…"><button class="red" type="submit">Envoyer</button></form>
+</section>
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
@@ -470,6 +502,7 @@ async function cutEffect(ghosts,r){
 }
 /* Le tas s'aspire vers la main : cascade du haut vers le bas, tourbillon, ≤ 1,2 s */
 async function pickupRun(pairs,who){
+  showPickupGif(who);
   const isMe=who===myId,n=pairs.length;if(!n)return;
   const gap=n>1?Math.min(MOTION.pickupGap,(MOTION.pickupMax-MOTION.pickup)/(n-1)):0;
   const dstOpp=handRect(null,who);
@@ -618,6 +651,7 @@ async function transition(next,skip){
   animating=true;$('fx').classList.add('block');
   try{
     if(reduceMotion()){
+      if(ev.type==='pickup'||(ev.type==='blind'&&!ev.ok))showPickupGif(ev.who);
       const els=[...plan.hide].map(q).filter(Boolean);plan.hide.forEach(reveal);
       await Promise.all(els.map(e=>anim(e,[{opacity:0},{opacity:1}],{duration:MOTION.fade,fill:'none'})));
     }else await Promise.race([plan.run(old),sleep(5000)]);
@@ -634,6 +668,58 @@ function copyInvite(c){
   if(navigator.share){navigator.share({title:"Le Jeu d'Arnaud",text:'Rejoins ma partie (code '+c+')',url}).catch(()=>{});return}
   if(navigator.clipboard)navigator.clipboard.writeText(url).then(done,()=>toast('Lien : '+url));else toast('Lien : '+url);
 }
+/* ---------- chat ---------- */
+const QUICK=['Bien joué !','Aïe 😅','Allez, à toi !','Hahaha','Revanche ?','Attends-moi 2 min'];
+let chatOpen=false,seenChat=0,chatCount=-1,peekT=null;
+function chatList(){return (game&&Array.isArray(game.chat))?game.chat:[]}
+function renderChat(){
+  const inGame=!!(game&&code&&!$('game').hidden);
+  $('chatBtn').hidden=!inGame||chatOpen;$('chat').hidden=!inGame||!chatOpen;
+  if(!inGame){$('peek').hidden=true;return}
+  const list=chatList();
+  if(chatCount<0)seenChat=list.length;
+  if(chatOpen)seenChat=list.length;
+  const unread=Math.max(0,list.length-seenChat);
+  $('chatBadge').hidden=!unread;$('chatBadge').textContent=unread;
+  if(list.length>chatCount&&chatCount>=0&&!chatOpen){
+    const m=list[list.length-1];
+    if(m&&m.by!==myId){$('peek').innerHTML='<b>'+esc(m.name||'Joueur')+'</b>'+esc(m.text);$('peek').hidden=false;clearTimeout(peekT);peekT=setTimeout(()=>$('peek').hidden=true,4000)}
+  }
+  if(chatOpen&&list.length!==chatCount){
+    const box=$('msgs'),atEnd=box.scrollHeight-box.scrollTop-box.clientHeight<40;
+    box.innerHTML=list.length?list.map(m=>'<div class="msg'+(m.by===myId?' me':'')+'"><span class="who">'+esc(m.by===myId?'Toi':(m.name||'Joueur'))+'</span><span class="txt">'+esc(m.text)+'</span></div>').join(''):'<p class="muted" style="margin:auto;text-align:center">Aucun message pour l\'instant.<br>Dis bonjour à la table !</p>';
+    if(atEnd||chatCount<0||list.length&&list[list.length-1].by===myId)box.scrollTop=box.scrollHeight;
+  }
+  chatCount=list.length;
+}
+function openChat(){chatOpen=true;chatCount=-2;$('peek').hidden=true;renderChat();chatCount=chatList().length;const b=$('msgs');b.scrollTop=b.scrollHeight;setTimeout(()=>{try{$('chatInput').focus({preventScroll:true})}catch(e){}},50)}
+function closeChat(){chatOpen=false;renderChat()}
+async function sendChat(text){
+  text=(text||'').trim().slice(0,200);if(!text||!code||!db)return;
+  const me=game&&game.players.find(p=>p.id===myId);
+  const msg={id:rid(),by:myId,name:me?me.name:nick(),t:Date.now(),text};
+  try{
+    if(db.transact)await db.transact('games/'+code,st=>{st.chat=[...(Array.isArray(st.chat)?st.chat:[]),msg].slice(-60)});
+  }catch(e){toast("Message non envoyé. Vérifie ta connexion.")}
+}
+/* ---------- GIF du ramassage ---------- */
+const PICKUP_GIF='https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZjFjYnU4ajF1NGppMTJ5dXZjOTFkcGZrbXB4b2Rva3FyMG9hYzlsOSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/ze4Y13PeotDfqoQWza/giphy.gif';
+const gifImg=new Image();gifImg.src=PICKUP_GIF;
+let gifT=null;
+function showPickupGif(who){
+  const p=game&&game.players.find(x=>x.id===who);
+  const name=who===myId?'Tu ramasses le tas !':((p?p.name:'Quelqu\'un')+' ramasse le tas !');
+  let el=document.getElementById('pickgif');
+  if(!el){el=document.createElement('div');el.id='pickgif';el.className='pickgif';document.body.appendChild(el)}
+  el.innerHTML='<figure><img alt="" src="'+PICKUP_GIF+'"><figcaption></figcaption></figure>';
+  el.querySelector('figcaption').textContent=name;
+  el.querySelector('img').onerror=function(){this.remove()};
+  el.hidden=false;
+  try{el.animate([{opacity:0,transform:'scale(.85)'},{opacity:1,transform:'scale(1)'}],{duration:220,easing:'cubic-bezier(.34,1.5,.6,1)'})}catch(e){}
+  clearTimeout(gifT);
+  gifT=setTimeout(()=>{try{el.animate([{opacity:1},{opacity:0}],{duration:300}).finished.then(()=>{el.hidden=true}).catch(()=>{el.hidden=true})}catch(e){el.hidden=true}},2600);
+}
+
 /* ---------- lobby ---------- */
 async function createGame(){
   const A='ABCDEFGHJKLMNPQRSTUVWXYZ';let c='';for(let i=0;i<4;i++)c+=A[Math.floor(Math.random()*A.length)];
@@ -659,6 +745,7 @@ async function joinGame(c){
   if(ok) openGame(c); else if(msg) toast(msg);
 }
 function openGame(c){
+  chatOpen=false;chatCount=-1;seenChat=0;$('peek').hidden=true;
   if(unsub)unsub();code=c;ls.set('arnaud.code',c);sel=[];swapPick=null;game=null;
   $('lobby').hidden=true;$('game').hidden=false;$('menuBtn').hidden=false;render();
   lastV=0;startPoll();
@@ -680,6 +767,7 @@ function leaveView(){
   if(unsub)unsub();unsub=null;code=null;game=null;sel=[];
   hiddenKeys.clear();$('fx').querySelectorAll('.flycard').forEach(g=>g.remove());$('fx').classList.remove('block');animating=false;
   ls.del('arnaud.code');$('game').hidden=true;$('game').innerHTML='';$('lobby').hidden=false;$('menuBtn').hidden=true;
+  chatOpen=false;renderChat();
   window.scrollTo(0,0);
 }
 async function leaveTable(){
@@ -749,7 +837,8 @@ const backHTML=(o={})=>{const k=o.k?' data-k="'+esc(o.k)+'"':'';return o.btn!=nu
 /* rotation stable de chaque carte sur le tas (±8°) */
 const pileRot=c=>{let h=0;for(const ch of c)h=(h*31+ch.charCodeAt(0))|0;return (Math.abs(h)%17)-8};
 
-function render(){
+function render(){renderGame();try{renderChat()}catch(e){console.error(e)}}
+function renderGame(){
   const el=$('game');if(el.hidden)return;
   if(!game){el.innerHTML='<div class="panel col"><p class="muted">Chargement de la partie '+esc(code||'')+'…</p><button class="ghost" id="leave">Retour à l\'accueil</button></div>';$('leave').onclick=leaveView;return}
   const st=game,mi=meIdx(st),me=st.players[mi];
@@ -883,6 +972,10 @@ function renderGames(docs){
 (async()=>{
   $('create').onclick=createGame;
   $('menuBtn').onclick=leaveTable;
+  $('chatBtn').onclick=openChat;$('chatClose').onclick=closeChat;$('peek').onclick=openChat;
+  $('quick').innerHTML=QUICK.map(t=>'<button type="button">'+esc(t)+'</button>').join('');
+  $('quick').querySelectorAll('button').forEach(b=>b.onclick=()=>sendChat(b.textContent));
+  $('chatForm').addEventListener('submit',e=>{e.preventDefault();const v=$('chatInput').value;$('chatInput').value='';sendChat(v)});
   $('joinbtn').onclick=()=>joinGame($('joincode').value);
   $('joincode').addEventListener('keydown',e=>{if(e.key==='Enter')joinGame($('joincode').value)});
   const saved=ls.get('arnaud.nick');if(saved)$('nick').value=saved;
